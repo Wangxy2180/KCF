@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <ctime>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -23,6 +24,7 @@ int main(int argc, char* argv[]){
 	bool SILENT = true;
 	bool LAB = false;
 
+	
 	for(int i = 0; i < argc; i++){
 		if ( strcmp (argv[i], "hog") == 0 )
 			HOG = true;
@@ -45,15 +47,16 @@ int main(int argc, char* argv[]){
 
 	// Frame readed
 	Mat frame;
+	//cout<<"before rect"<<endl;
 
 	// Tracker results
 	Rect result;
-
+/*
 	// Path to list.txt
 	ifstream listFile;
 	string fileName = "images.txt";
   	listFile.open(fileName);
-
+*/
   	// Read groundtruth for the 1st frame
   	ifstream groundtruthFile;
 	string groundtruth = "region.txt";
@@ -65,7 +68,8 @@ int main(int argc, char* argv[]){
   	istringstream ss(firstLine);
 
   	// Read groundtruth like a dumb
-  	float x1, y1, x2, y2, x3, y3, x4, y4;
+	//左上，左下，右上，右下，左上角为00
+	float x1, y1, x2, y2, x3, y3, x4, y4;
   	char ch;
 	ss >> x1;
 	ss >> ch;
@@ -84,6 +88,7 @@ int main(int argc, char* argv[]){
 	ss >> y4; 
 
 	// Using min and max of X and Y for groundtruth rectangle
+	// 两个min为左上角
 	float xMin =  min(x1, min(x2, min(x3, x4)));
 	float yMin =  min(y1, min(y2, min(y3, y4)));
 	float width = max(x1, max(x2, max(x3, x4))) - xMin;
@@ -105,21 +110,35 @@ int main(int argc, char* argv[]){
 	// Frame counter
 	int nFrames = 0;
 
+	//cout<<"before cap"<<endl;
+	cv::VideoCapture cap;
+	cap.open("tennis_2.mp4");
 
-	while ( getline(listFramesFile, frameName) ){
-		frameName = frameName;
+
+
+	clock_t start_time = clock();
+	//while ( getline(listFramesFile, frameName) ){
+	while ( 1 ){
 
 		// Read each frame from the list
-		frame = imread(frameName, CV_LOAD_IMAGE_COLOR);
-
+		//frame = imread(frameName, CV_LOAD_IMAGE_COLOR);
+		cap>>frame;
+		if (frame.empty())break;
+		//cout<<"1"<<endl;
 		// First frame, give the groundtruth to the tracker
 		if (nFrames == 0) {
+			//cout<<"2"<<endl;
+			cout<<xMin<<" "<<yMin<<" "<<width<<" "<<height<<endl;
 			tracker.init( Rect(xMin, yMin, width, height), frame );
+			//cout<<"2.1"<<endl;
 			rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
+			//cout<<"2.2"<<endl;
 			resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
+			//cout<<"2.3"<<endl;
 		}
 		// Update
 		else{
+			//cout<<"3"<<endl;
 			result = tracker.update(frame);
 			rectangle( frame, Point( result.x, result.y ), Point( result.x+result.width, result.y+result.height), Scalar( 0, 255, 255 ), 1, 8 );
 			resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
@@ -127,13 +146,16 @@ int main(int argc, char* argv[]){
 
 		nFrames++;
 
+		//cout<<"5"<<endl;
 		if (!SILENT){
 			imshow("Image", frame);
 			waitKey(1);
 		}
 	}
+	cout<<"whole while is "<<(double)(clock() - start_time)/CLOCKS_PER_SEC<<endl;
+	fflush(stdout);
 	resultsFile.close();
-
+/*
 	listFile.close();
-
+*/
 }
